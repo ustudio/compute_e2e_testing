@@ -1,7 +1,5 @@
 version: 2.1
-orbs:
-  ustudio_artifacts: ustudio/backup-artifacts@1.0.1
-  gcloud: circleci/gcp-cli@3.0.0
+
 jobs:
   build:
     docker:
