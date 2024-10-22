@@ -1,0 +1,15 @@
+[package]
+name = "compute_e2e_testing"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "1.0.86"
+http = "^0.2.12"
+hyper = "^0.14.26"
+regex = "1.7.0"
+serde_json = "1.0.89"
+synchronized-writer = "1.1.11"
+tokio = "^1.39.2"
+viceroy-lib = "^0.10.2"
