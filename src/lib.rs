@@ -1,4 +1,3 @@
-use anyhow;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use std::collections::{HashMap, HashSet};
@@ -8,7 +7,6 @@ use std::io::{BufRead, Cursor};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use tokio;
 use viceroy_lib::body::Body as ViceroyBody;
 use viceroy_lib::{config, ExecuteCtx, ProfilingStrategy};
 
@@ -45,7 +43,7 @@ fn listen(
         .blocking_recv()
         .expect("server addr should be received");
 
-    return (stop_tx, listen_addr.port());
+    (stop_tx, listen_addr.port())
 }
 
 pub struct Requester {
@@ -141,16 +139,17 @@ impl Requester {
             ))
             .expect("Viceroy response should be successful");
 
-        loop {
-            match self.backends.pop() {
-                Some((_, stop_server, _)) => {
-                    stop_server.send(()).expect("Server should be stopped")
-                }
-                None => break,
-            }
+        while let Some((_, stop_server, _)) = self.backends.pop() {
+            stop_server.send(()).expect("Server should be stopped")
         }
 
         HandledRequest::new(self.runtime, self.captured_logs, response)
+    }
+}
+
+impl Default for Requester {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -188,9 +187,9 @@ impl HandledRequest {
     pub fn expect_header(&self, name: &str) -> &str {
         self.get_headers()
             .get(name)
-            .expect(&format!("{name} header should be returned"))
+            .unwrap_or_else(|| panic!("{name} header should be a string"))
             .to_str()
-            .expect(&format!("{name} header should be a string"))
+            .unwrap_or_else(|_| panic!("{name} header should be a string"))
     }
 
     pub fn body_string(&self) -> &String {
