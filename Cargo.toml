@@ -5,8 +5,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "^1.0.91"
 http = "^0.2.12"
 hyper = "^0.14.26"
-tokio = "^1.39.2"
-viceroy-lib = "^0.10.2"
+tokio = "^1.41.0"
+viceroy-lib = "^0.12.1"
