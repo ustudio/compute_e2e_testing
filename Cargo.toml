@@ -1,0 +1,12 @@
+[package]
+name = "compute_e2e_testing"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "^1.0.91"
+http = "^0.2.12"
+hyper = "^0.14.26"
+tokio = "^1.41.0"
+viceroy-lib = "^0.12.1"

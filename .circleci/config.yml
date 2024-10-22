@@ -1,0 +1,40 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: cimg/rust:1.82
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-rust-1-82-dependencies-{{ checksum "Cargo.toml" }}
+      - run:
+          name: build
+          command: |
+            cargo build --release
+      - run:
+          name: check formatting
+          command: |
+            cargo fmt --check
+      - run:
+          name: lint code
+          command: |
+            cargo clippy --all-targets --all-features -- -D warnings
+      - save_cache:
+          paths:
+            - target
+            # See: https://doc.rust-lang.org/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
+            - ~/.cargo/.crates.toml
+            - ~/.cargo/.crates2.json
+            - ~/.cargo/bin/
+            - ~/.cargo/registry/index/
+            - ~/.cargo/registry/cache/
+            - ~/.cargo/git/db/
+          key: v1-rust-1-82-dependencies-{{ checksum "Cargo.toml" }}
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
