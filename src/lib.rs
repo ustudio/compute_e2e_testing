@@ -94,7 +94,7 @@ impl Requester {
     }
 
     pub fn fetch(mut self, req: http::Request<Body>) -> HandledRequest {
-        let ctx = ExecuteCtx::new(
+        let ctx = ExecuteCtx::build(
             Path::new(
                 env::var("CARGO_FASTLY_E2E_MODULE")
                     .expect("CARGO_FASTLY_E2E_MODULE environment variable should be set")
@@ -128,7 +128,9 @@ impl Requester {
         )))
         .with_capture_logs(self.captured_logs.clone())
         .with_log_stdout(true)
-        .with_log_stderr(true);
+        .with_log_stderr(true)
+        .finish()
+        .unwrap();
 
         let response = self
             .runtime
