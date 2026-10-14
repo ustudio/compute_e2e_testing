@@ -1,14 +1,17 @@
 version: 2.1
-
+parameters:
+  rust_version:
+    type: string
+    default: "1.98"
 jobs:
   build:
     docker:
-      - image: cimg/rust:1.91
+      - image: cimg/rust:<< pipeline.parameters.rust_version >>
     steps:
       - checkout
       - restore_cache:
           keys:
-            - v1-rust-1-91-dependencies-{{ checksum "Cargo.toml" }}
+            - v1-rust-<< pipeline.parameters.rust_version >>-dependencies-{{ checksum "Cargo.toml" }}
       - run:
           name: build
           command: |
@@ -31,7 +34,7 @@ jobs:
             - ~/.cargo/registry/index/
             - ~/.cargo/registry/cache/
             - ~/.cargo/git/db/
-          key: v1-rust-1-91-dependencies-{{ checksum "Cargo.toml" }}
+          key: v1-rust-<< pipeline.parameters.rust_version >>-dependencies-{{ checksum "Cargo.toml" }}
 
 workflows:
   version: 2
