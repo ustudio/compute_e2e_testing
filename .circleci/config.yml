@@ -24,9 +24,14 @@ jobs:
           name: lint code
           command: |
             cargo clippy --all-targets --all-features -- -D warnings
+      - run:
+          name: run integration tests
+          command: |
+            cargo test
       - save_cache:
           paths:
             - target
+            - tests/fixtures/service/target
             # See: https://doc.rust-lang.org/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
             - ~/.cargo/.crates.toml
             - ~/.cargo/.crates2.json

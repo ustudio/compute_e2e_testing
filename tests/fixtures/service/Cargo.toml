@@ -1,0 +1,12 @@
+[package]
+name = "e2e-fixture-service"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Keep this crate out of any parent workspace; it is built separately for the
+# wasm32-wasip1 target by the integration tests.
+[workspace]
+
+[dependencies]
+fastly = "^0.13.1"
