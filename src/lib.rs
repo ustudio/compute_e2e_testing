@@ -10,17 +10,25 @@ use std::sync::{Arc, Mutex};
 use viceroy_lib::body::Body as ViceroyBody;
 use viceroy_lib::{config, ExecuteCtx, ProfilingConfig, WasmFeatures};
 
-fn listen(
-    rt: &tokio::runtime::Runtime,
-    backend: fn(Request<Body>) -> Result<Response<Body>, Infallible>,
-) -> (tokio::sync::oneshot::Sender<()>, u16) {
+fn listen<F>(rt: &tokio::runtime::Runtime, backend: F) -> (tokio::sync::oneshot::Sender<()>, u16)
+where
+    F: FnMut(Request<Body>) -> Result<Response<Body>, Infallible> + Send + 'static,
+{
     let addr = SocketAddr::from(([127, 0, 0, 1], 0));
 
     let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
     let (addr_tx, addr_rx) = tokio::sync::oneshot::channel::<SocketAddr>();
 
-    let make_svc = make_service_fn(move |_conn| async move {
-        Ok::<_, Infallible>(service_fn(move |req| async move { backend(req) }))
+    let backend = Arc::new(Mutex::new(backend));
+
+    let make_svc = make_service_fn(move |_conn| {
+        let backend = backend.clone();
+        async move {
+            Ok::<_, Infallible>(service_fn(move |req| {
+                let backend = backend.clone();
+                async move { (backend.lock().expect("Backend should unlock"))(req) }
+            }))
+        }
     });
 
     rt.spawn(async move {
@@ -65,11 +73,10 @@ impl Requester {
         }
     }
 
-    pub fn with_backend(
-        mut self,
-        name: &str,
-        backend: fn(Request<Body>) -> Result<Response<Body>, Infallible>,
-    ) -> Self {
+    pub fn with_backend<F>(mut self, name: &str, backend: F) -> Self
+    where
+        F: FnMut(Request<Body>) -> Result<Response<Body>, Infallible> + Send + 'static,
+    {
         let (stop_server, port) = listen(&self.runtime, backend);
 
         self.backends.push((name.to_string(), stop_server, port));
