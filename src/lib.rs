@@ -8,7 +8,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use viceroy_lib::body::Body as ViceroyBody;
-use viceroy_lib::{config, ExecuteCtx, ProfilingStrategy};
+use viceroy_lib::{config, ExecuteCtx, ProfilingConfig, WasmFeatures};
 
 fn listen(
     rt: &tokio::runtime::Runtime,
@@ -100,11 +100,11 @@ impl Requester {
                     .expect("CARGO_FASTLY_E2E_MODULE environment variable should be set")
                     .as_str(),
             ),
-            ProfilingStrategy::None,
+            ProfilingConfig::None,
             HashSet::new(),
-            None,
             config::UnknownImportBehavior::LinkError,
             false,
+            WasmFeatures::default(),
         )
         .expect("Context should be created")
         .with_dictionaries(self.dictionaries)
@@ -120,8 +120,11 @@ impl Requester {
                         cert_host: None,
                         use_sni: false,
                         grpc: false,
+                        first_byte_timeout: None,
+                        between_bytes_timeout: None,
                         client_cert: None,
                         ca_certs: Vec::new(),
+                        health: config::BackendHealth::Healthy,
                     }),
                 )
             },
