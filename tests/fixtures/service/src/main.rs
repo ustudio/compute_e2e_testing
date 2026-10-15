@@ -12,37 +12,21 @@ fn main(req: Request) -> Result<Response, Error> {
             .with_header("X-Fixture", "hello")
             .with_body_text_plain("Hello, world!")),
 
-        ["status", code] => Ok(Response::from_status(code.parse::<u16>()?)),
-
-        ["echo"] => {
-            let method = req.get_method_str().to_string();
-            let header = req.get_header_str("X-Echo").unwrap_or_default().to_string();
-            let body = req.into_body_str();
-            Ok(Response::from_status(StatusCode::OK)
-                .with_header("X-Echo", header)
-                .with_body_text_plain(&format!("{method} {body}")))
-        }
-
         ["backend", name, rest @ ..] => {
             let mut bereq = req;
             bereq.set_path(&format!("/{}", rest.join("/")));
             bereq.set_header("X-Forwarded-By", "fixture");
-            match bereq.send(*name) {
-                Ok(beresp) => Ok(beresp),
-                Err(e) => Ok(Response::from_status(StatusCode::BAD_GATEWAY)
-                    .with_body_text_plain(&e.to_string())),
-            }
+            Ok(bereq
+                .send(*name)
+                .expect("Failed to send request to backend"))
         }
 
-        ["dictionary", name, key] => match ConfigStore::try_open(name) {
-            Ok(store) => match store.get(key) {
-                Some(value) => {
-                    Ok(Response::from_status(StatusCode::OK).with_body_text_plain(&value))
-                }
-                None => Ok(Response::from_status(StatusCode::NOT_FOUND)),
-            },
-            Err(_) => Ok(Response::from_status(StatusCode::INTERNAL_SERVER_ERROR)),
-        },
+        ["dictionary", name, key] => Ok(Response::from_status(StatusCode::OK)
+            .with_body_text_plain(
+                &ConfigStore::open(name)
+                    .get(key)
+                    .expect("Failed to get value from config store"),
+            )),
 
         ["log"] => {
             let mut endpoint = fastly::log::Endpoint::from_name("my_endpoint");

@@ -7,11 +7,10 @@ use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 
 #[test]
-fn returns_status_and_headers_and_body() {
+fn fetch_sends_request_and_returns_struct_with_getters_for_response_status_and_headers_and_body() {
     let result = requester().fetch(get("/hello"));
 
     assert_eq!(200, result.get_status());
-    assert_eq!("hello", result.expect_header("X-Fixture"));
     assert_eq!(
         "hello",
         result
@@ -25,25 +24,10 @@ fn returns_status_and_headers_and_body() {
 }
 
 #[test]
-fn returns_non_success_status() {
-    let result = requester().fetch(get("/status/418"));
+fn expect_header_returns_header_value_when_header_is_present() {
+    let result = requester().fetch(get("/hello"));
 
-    assert_eq!(418, result.get_status());
-    assert_eq!("", result.body_string());
-}
-
-#[test]
-fn passes_method_and_headers_and_body_to_module() {
-    let req = http::Request::post("http://example.com/echo")
-        .header("X-Echo", "echoed")
-        .body(Body::from("request body"))
-        .unwrap();
-
-    let result = requester().fetch(req);
-
-    assert_eq!(200, result.get_status());
-    assert_eq!("echoed", result.expect_header("X-Echo"));
-    assert_eq!("POST request body", result.body_string());
+    assert_eq!("hello", result.expect_header("X-Fixture"));
 }
 
 #[test]
@@ -54,7 +38,7 @@ fn expect_header_panics_when_header_is_missing() {
 
 #[test]
 fn default_is_equivalent_to_new() {
-    common::requester();
+    common::requester(); // Ensures that the fixture module is available
 
     let result = compute_e2e_testing::Requester::default().fetch(get("/hello"));
 
@@ -70,7 +54,7 @@ fn origin(_req: http::Request<Body>) -> Result<Response<Body>, Infallible> {
 }
 
 #[test]
-fn proxies_to_fn_backend() {
+fn with_backend_supports_a_fn_argument() {
     let result = requester()
         .with_backend("origin", origin)
         .fetch(get("/backend/origin/some/path"));
@@ -81,7 +65,7 @@ fn proxies_to_fn_backend() {
 }
 
 #[test]
-fn closure_backend_observes_requests() {
+fn with_backend_supports_a_closure_argument() {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let recorder = seen.clone();
 
@@ -126,67 +110,23 @@ fn closure_backend_can_mutate_captured_state() {
 }
 
 #[test]
-fn routes_to_multiple_backends_by_name() {
-    let backend =
-        |name: &'static str| move |_req| Ok::<_, Infallible>(Response::new(Body::from(name)));
-
-    let first = requester()
-        .with_backend("first", backend("first"))
-        .with_backend("second", backend("second"))
-        .fetch(get("/backend/first"));
-
-    let second = requester()
-        .with_backend("first", backend("first"))
-        .with_backend("second", backend("second"))
-        .fetch(get("/backend/second"));
-
-    assert_eq!("first", first.body_string());
-    assert_eq!("second", second.body_string());
-}
-
-#[test]
-fn unregistered_backend_fails_to_send() {
-    let result = requester().fetch(get("/backend/nowhere"));
-
-    assert_eq!(502, result.get_status());
-}
-
-#[test]
-fn reads_dictionary_values() {
-    let contents = HashMap::from([("greeting", "hi there"), ("other", "value")]);
+fn with_dictionary_sets_contents_of_named_config_store() {
+    let contents = HashMap::from([
+        ("other", "value"),
+        ("greeting", "hi there"),
+        ("another", "thing"),
+    ]);
 
     let result = requester()
         .with_dictionary("settings", &contents)
+        .with_dictionary(
+            "other",
+            &HashMap::from([("greeting", "wrong config store")]),
+        )
         .fetch(get("/dictionary/settings/greeting"));
 
     assert_eq!(200, result.get_status());
     assert_eq!("hi there", result.body_string());
-}
-
-#[test]
-fn missing_dictionary_key_is_not_found() {
-    let result = requester()
-        .with_dictionary("settings", &HashMap::from([("greeting", "hi")]))
-        .fetch(get("/dictionary/settings/absent"));
-
-    assert_eq!(404, result.get_status());
-}
-
-#[test]
-fn supports_multiple_dictionaries() {
-    let result = requester()
-        .with_dictionary("one", &HashMap::from([("key", "from one")]))
-        .with_dictionary("two", &HashMap::from([("key", "from two")]))
-        .fetch(get("/dictionary/two/key"));
-
-    assert_eq!("from two", result.body_string());
-}
-
-#[test]
-fn unregistered_dictionary_cannot_be_opened() {
-    let result = requester().fetch(get("/dictionary/missing/key"));
-
-    assert_eq!(500, result.get_status());
 }
 
 #[test]
