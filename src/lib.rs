@@ -142,7 +142,7 @@ impl Requester {
         .finish()
         .unwrap();
 
-        let response = self
+        let (response, _guest_error) = self
             .runtime
             .block_on(ctx.handle_request(
                 req,
@@ -176,13 +176,13 @@ impl HandledRequest {
     fn new(
         runtime: tokio::runtime::Runtime,
         captured_logs: Arc<Mutex<Vec<u8>>>,
-        response: (http::Response<ViceroyBody>, Option<anyhow::Error>),
+        response: http::Response<ViceroyBody>,
     ) -> Self {
         Self {
-            status: response.0.status().as_u16(),
-            headers: response.0.headers().clone(),
+            status: response.status().as_u16(),
+            headers: response.headers().clone(),
             body_string: runtime
-                .block_on(response.0.into_body().read_into_string())
+                .block_on(response.into_body().read_into_string())
                 .expect("String body should be in result"),
             captured_logs,
         }
