@@ -7,6 +7,7 @@ use std::io::{BufRead, Cursor};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use viceroy_lib::body::Body as ViceroyBody;
 use viceroy_lib::{config, ExecuteCtx, ProfilingConfig, WasmFeatures};
 
@@ -56,7 +57,12 @@ where
 
 pub struct Requester {
     runtime: tokio::runtime::Runtime,
-    backends: Vec<(String, tokio::sync::oneshot::Sender<()>, u16)>,
+    backends: Vec<(
+        String,
+        tokio::sync::oneshot::Sender<()>,
+        u16,
+        Option<Duration>,
+    )>,
     dictionaries: HashMap<String, config::Dictionary>,
     captured_logs: Arc<Mutex<Vec<u8>>>,
 }
@@ -79,7 +85,20 @@ impl Requester {
     {
         let (stop_server, port) = listen(&self.runtime, backend);
 
-        self.backends.push((name.to_string(), stop_server, port));
+        self.backends
+            .push((name.to_string(), stop_server, port, None));
+
+        self
+    }
+
+    pub fn with_backend_timeout<F>(mut self, name: &str, backend: F, timeout: Duration) -> Self
+    where
+        F: FnMut(Request<Body>) -> Result<Response<Body>, Infallible> + Send + 'static,
+    {
+        let (stop_server, port) = listen(&self.runtime, backend);
+
+        self.backends
+            .push((name.to_string(), stop_server, port, Some(timeout)));
 
         self
     }
@@ -116,7 +135,7 @@ impl Requester {
         .expect("Context should be created")
         .with_dictionaries(self.dictionaries)
         .with_backends(HashMap::from_iter(self.backends.iter().map(
-            |(name, _, port)| {
+            |(name, _, port, timeout)| {
                 (
                     name.clone(),
                     Arc::new(config::Backend {
@@ -127,7 +146,7 @@ impl Requester {
                         cert_host: None,
                         use_sni: false,
                         grpc: false,
-                        first_byte_timeout: None,
+                        first_byte_timeout: *timeout,
                         between_bytes_timeout: None,
                         client_cert: None,
                         ca_certs: Vec::new(),
@@ -151,7 +170,7 @@ impl Requester {
             ))
             .expect("Viceroy response should be successful");
 
-        while let Some((_, stop_server, _)) = self.backends.pop() {
+        while let Some((_, stop_server, _, _)) = self.backends.pop() {
             stop_server.send(()).expect("Server should be stopped")
         }
 
