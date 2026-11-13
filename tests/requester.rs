@@ -125,6 +125,8 @@ fn with_backend_timeout_enforces_first_byte_timeout() {
         )
         .fetch(get("/backend-error/origin/a/b"));
 
+    // The fixture handler returns a 200 when the backend request fails, or a 500 if the backend
+    // request succeeds.
     assert_eq!(200, result.get_status());
 }
 
