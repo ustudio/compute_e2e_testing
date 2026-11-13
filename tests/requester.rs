@@ -5,6 +5,8 @@ use hyper::{Body, Response};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
+use std::thread::sleep;
+use std::time::Duration;
 
 #[test]
 fn fetch_sends_request_and_returns_struct_with_getters_for_response_status_and_headers_and_body() {
@@ -107,6 +109,25 @@ fn closure_backend_can_mutate_captured_state() {
         .fetch(get("/backend/counter"));
 
     assert_eq!("1", result.body_string());
+}
+
+#[test]
+fn with_backend_timeout_enforces_first_byte_timeout() {
+    let result = requester()
+        .with_backend_timeout(
+            "origin",
+            move |_req: http::Request<Body>| {
+                sleep(Duration::from_millis(100));
+                // The request should timeout before this response is returned
+                Ok(Response::new(Body::from("slept")))
+            },
+            Duration::from_millis(1),
+        )
+        .fetch(get("/backend-error/origin/a/b"));
+
+    // The fixture handler returns a 200 when the backend request fails, or a 500 if the backend
+    // request succeeds.
+    assert_eq!(200, result.get_status());
 }
 
 #[test]

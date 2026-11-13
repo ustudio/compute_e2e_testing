@@ -21,6 +21,16 @@ fn main(req: Request) -> Result<Response, Error> {
                 .expect("Failed to send request to backend"))
         }
 
+        ["backend-error", name, rest @ ..] => {
+            let mut bereq = req;
+            bereq.set_path(&format!("/{}", rest.join("/")));
+            bereq.set_header("X-Forwarded-By", "fixture");
+            match bereq.send(*name) {
+                Ok(_) => Ok(Response::from_status(StatusCode::INTERNAL_SERVER_ERROR)),
+                Err(_) => Ok(Response::from_status(StatusCode::OK)),
+            }
+        }
+
         ["dictionary", name, key] => Ok(Response::from_status(StatusCode::OK)
             .with_body_text_plain(
                 &ConfigStore::open(name)
